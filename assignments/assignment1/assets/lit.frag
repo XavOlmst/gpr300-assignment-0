@@ -1,12 +1,10 @@
 #version 450
 out vec4 FragColor; //The color of this fragment
-
 in Surface
 {
 	vec3 WorldPos;
 	vec3 WorldNormal;
 	vec2 TexCoords;
-	mat3 TBN;
 }fs_in; //Interpolated of this fragment 
 
 uniform sampler2D mainTex;
@@ -23,14 +21,10 @@ struct Material{
 };
 
 uniform Material _Material;
-uniform sampler2D normalMap;
 
 void main(){
 	//Shade with 0-1 normal
-	vec3 normal = texture(normalMap, fs_in.TexCoords).rgb;
-	normal = normalize(normal * 2.0f - 1.0f);
-	normal = normalize(fs_in.TBN * normal);
-
+	vec3 normal = normalize(fs_in.WorldNormal);
 	vec3 toLight = -_LightDirection;
 	float difuseFactor = max(dot(normal, toLight),0.0);
 
