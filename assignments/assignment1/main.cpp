@@ -38,7 +38,7 @@ struct Material {
 }material;
 
 int main() {	
-	GLFWwindow* window = initWindow("Assignment 0", screenWidth, screenHeight);
+	GLFWwindow* window = initWindow("Assignment 1", screenWidth, screenHeight);
 	glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
 
 	camera.position = glm::vec3(0.0f, 0.0f, 5.0f);
@@ -55,16 +55,11 @@ int main() {
 	ew::Transform monkeyTransform;
 
 	GLuint rockTexture = ew::loadTexture("assets/rock.jpg");
-	GLuint rockNormalmap = ew::loadTexture("assets/rock_normal1.jpg");
 
 	glBindTextureUnit(0, rockTexture);
-	glBindTextureUnit(1, rockNormalmap);
 
 	shader.use();
 	shader.setInt("_MainTex", 0);
-	shader.setInt("normalMap", 1);
-
-
 
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
@@ -145,7 +140,6 @@ void drawUI() {
 		ambientLight = glm::vec3(ambientLightdata[0] / 255, ambientLightdata[1] / 255, ambientLightdata[2] / 255);
 	}
 
-	ImGui::Text("Add Controls Here!");
 	ImGui::End();
 
 	ImGui::Render();
