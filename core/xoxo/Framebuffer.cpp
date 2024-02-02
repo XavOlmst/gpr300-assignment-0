@@ -3,9 +3,9 @@
 
 namespace xoxo
 {
-	Framebuffer::Framebuffer(unsigned int fbo, unsigned int colorBuffer[8], unsigned int depthBuffer, unsigned int width, unsigned int height)
+	Framebuffer::Framebuffer(unsigned int fbo, unsigned int colorBuffers, unsigned int depthBuffer, unsigned int width, unsigned int height)
 	{
-		this->colorBuffer = colorBuffer;
+		colorBuffer[0] = colorBuffers;
 		this->depthBuffer = depthBuffer;
 		this->height = height;
 		this->width = width;
@@ -16,7 +16,7 @@ namespace xoxo
 	{
 		unsigned int fbo, colorBuffer;
 
-		glCreateFramebuffers(1, &fbo);
+		glGenFramebuffers(1, &fbo);
 		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
 		glGenTextures(1, &colorBuffer);
@@ -32,7 +32,8 @@ namespace xoxo
 
 		glTexStorage2D(GL_TEXTURE_2D, 1, GL_DEPTH_COMPONENT16, screenWidth, screenHeight);
 
-		glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthBuffer, 0);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthBuffer, 0);
+
 
 		return Framebuffer(fbo, colorBuffer, depthBuffer, screenWidth, screenHeight);
 	}

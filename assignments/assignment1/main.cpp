@@ -13,6 +13,7 @@
 #include <ew/transform.h>
 #include <ew/camera.h>
 #include <ew/cameraController.h>
+#include <xoxo/FrameBuffer.h>
 
 void framebufferSizeCallback(GLFWwindow* window, int width, int height);
 GLFWwindow* initWindow(const char* title, int width, int height);
@@ -37,6 +38,20 @@ struct Material {
 	float Shininess = 128;
 }material;
 
+GLfloat vertices[] =
+{
+	0,0,
+	0,1,
+	1,0,
+	1,1,
+};
+
+GLuint indicies[] =
+{
+	0, 1, 2,
+	2, 3, 0
+};
+
 int main() {	
 	GLFWwindow* window = initWindow("Assignment 1", screenWidth, screenHeight);
 	glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
@@ -51,15 +66,25 @@ int main() {
 	glEnable(GL_DEPTH_TEST); //Depth testing
 
 	ew::Shader shader = ew::Shader("assets/lit.vert", "assets/lit.frag");
+	ew::Shader postProcessingShader = ew::Shader("assets/postProc.vert", "assets/postProc.frag");
 	ew::Model monkeyModel = ew::Model("assets/suzanne.fbx");
 	ew::Transform monkeyTransform;
 
 	GLuint rockTexture = ew::loadTexture("assets/rock.jpg");
+	xoxo::Framebuffer framebuffer = xoxo::createFramebuffer(screenWidth, screenHeight, GL_RGBA8);
 
-	glBindTextureUnit(0, rockTexture);
+	GLenum fboStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	if (fboStatus != GL_FRAMEBUFFER_COMPLETE) {
+		printf("Framebuffer incomplete: %d", fboStatus);
+	}
+
+
 
 	shader.use();
 	shader.setInt("_MainTex", 0);
+
+	unsigned int unintelligentVAO;
+	glCreateVertexArrays(1, &unintelligentVAO);
 
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
@@ -68,9 +93,14 @@ int main() {
 		deltaTime = time - prevFrameTime;
 		prevFrameTime = time;
 
+		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.fbo);
+		glViewport(0, 0, framebuffer.width, framebuffer.height);
 		//RENDER
 		glClearColor(0.6f,0.8f,0.92f,1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glEnable(GL_DEPTH_TEST);
+
+		glBindTextureUnit(0, rockTexture);
 
 		monkeyTransform.rotation = glm::rotate(monkeyTransform.rotation, deltaTime, glm::vec3(0.0, 1.0, 0.0));
 
@@ -91,6 +121,16 @@ int main() {
 		monkeyModel.draw(); //Draws monkey model using current shader
 
 		cameraController.move(window, &camera, deltaTime);
+
+
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		postProcessingShader.use();
+
+		glBindTextureUnit(0, *framebuffer.colorBuffer);
+		glBindVertexArray(unintelligentVAO);
+		glDrawArrays(GL_TRIANGLES, 0, 3);
 
 		drawUI();
 

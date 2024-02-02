@@ -37,5 +37,7 @@ void main(){
 	lightColor += _AmbientColor * _Material.Ka;
 	vec3 objColor = texture(mainTex, fs_in.TexCoords).rgb;
 
+	objColor = pow(objColor, vec3(1.0/2.2));
+
 	FragColor = vec4(objColor * lightColor, 1.0);
 }
