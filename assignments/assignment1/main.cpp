@@ -52,6 +52,8 @@ GLuint indicies[] =
 	2, 3, 0
 };
 
+int kernalIndex = 0;
+
 int main() {	
 	GLFWwindow* window = initWindow("Assignment 1", screenWidth, screenHeight);
 	glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
@@ -93,8 +95,17 @@ int main() {
 		deltaTime = time - prevFrameTime;
 		prevFrameTime = time;
 
-		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.fbo);
-		glViewport(0, 0, framebuffer.width, framebuffer.height);
+		if (kernalIndex <= 2)
+		{
+			glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.fbo);
+			glViewport(0, 0, framebuffer.width, framebuffer.height);
+		}
+		else
+		{
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		}
+
 		//RENDER
 		glClearColor(0.6f,0.8f,0.92f,1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -123,11 +134,17 @@ int main() {
 		cameraController.move(window, &camera, deltaTime);
 
 
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		postProcessingShader.use();
 
+		if (kernalIndex <= 2)
+		{
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+			postProcessingShader.use();
+			postProcessingShader.setInt("_KernalIndex", kernalIndex);
+		}
+		
 		glBindTextureUnit(0, *framebuffer.colorBuffer);
 		glBindVertexArray(unintelligentVAO);
 		glDrawArrays(GL_TRIANGLES, 0, 3);
@@ -178,6 +195,11 @@ void drawUI() {
 		lightDir = glm::vec3(lightPosition[0], lightPosition[1], lightPosition[2]);
 		lightColor = glm::vec3(lightColorData[0] / 255, lightColorData[1] / 255, lightColorData[2] / 255);
 		ambientLight = glm::vec3(ambientLightdata[0] / 255, ambientLightdata[1] / 255, ambientLightdata[2] / 255);
+	}
+
+	if (ImGui::CollapsingHeader("Kernal Selection"))
+	{
+		ImGui::SliderInt("Kernal Index", &kernalIndex, 0, 3);
 	}
 
 	ImGui::End();
