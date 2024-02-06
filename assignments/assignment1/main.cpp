@@ -80,8 +80,6 @@ int main() {
 		printf("Framebuffer incomplete: %d", fboStatus);
 	}
 
-
-
 	shader.use();
 	shader.setInt("_MainTex", 0);
 
@@ -103,13 +101,11 @@ int main() {
 		else
 		{
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
-			//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		}
 
 		//RENDER
 		glClearColor(0.6f,0.8f,0.92f,1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		glEnable(GL_DEPTH_TEST);
 
 		glBindTextureUnit(0, rockTexture);
 
@@ -129,12 +125,9 @@ int main() {
 		shader.setMat4("_ViewProjection", camera.projectionMatrix() * camera.viewMatrix());
 		shader.setMat4("_Model", monkeyTransform.modelMatrix());
 
-		monkeyModel.draw(); //Draws monkey model using current shader
+		monkeyModel.draw();
 
 		cameraController.move(window, &camera, deltaTime);
-
-
-
 
 		if (kernalIndex <= 2)
 		{

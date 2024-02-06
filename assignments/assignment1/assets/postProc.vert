@@ -1,6 +1,5 @@
 #version 450
 
-
 out vec2 UV;
 
 vec4 vertices[3] = 
