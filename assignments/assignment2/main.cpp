@@ -14,6 +14,7 @@
 #include <ew/camera.h>
 #include <ew/cameraController.h>
 #include <xoxo/FrameBuffer.h>
+#include <ew/procGen.h>
 
 void framebufferSizeCallback(GLFWwindow* window, int width, int height);
 GLFWwindow* initWindow(const char* title, int width, int height);
@@ -25,6 +26,7 @@ int screenHeight = 720;
 float prevFrameTime;
 float deltaTime;
 ew::Camera camera;
+ew::Camera shadowCamera;
 ew::CameraController cameraController;
 
 glm::vec3 lightDir(0.0, -1.0, 0.0);
@@ -63,6 +65,13 @@ int main() {
 	camera.aspectRatio = (float)screenWidth / screenHeight;
 	camera.fov = 60.0f; //Vertical field of view, in degrees
 
+	shadowCamera.orthographic = true;
+	shadowCamera.aspectRatio = 10.0f / 10.0f;
+	shadowCamera.orthoHeight = 10.0f;
+	glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, shadowCamera.nearPlane, shadowCamera.farPlane);
+	glm::mat4 lightView = glm::lookAt(lightDir, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	glm::mat4 lightSpaceMatrix = lightProjection * lightView;
+
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_BACK); //Back face culling
 	glEnable(GL_DEPTH_TEST); //Depth testing
@@ -70,6 +79,7 @@ int main() {
 	ew::Shader shader = ew::Shader("assets/lit.vert", "assets/lit.frag");
 	ew::Shader postProcessingShader = ew::Shader("assets/postProc.vert", "assets/postProc.frag");
 	ew::Model monkeyModel = ew::Model("assets/suzanne.fbx");
+	ew::Mesh planeMesh = ew::Mesh(ew::createPlane(10, 10, 5));
 	ew::Transform monkeyTransform;
 
 	GLuint rockTexture = ew::loadTexture("assets/rock.jpg");
@@ -126,6 +136,7 @@ int main() {
 		shader.setMat4("_Model", monkeyTransform.modelMatrix());
 
 		monkeyModel.draw();
+		planeMesh.draw();
 
 		cameraController.move(window, &camera, deltaTime);
 

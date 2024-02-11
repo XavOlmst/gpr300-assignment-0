@@ -1,9 +1,10 @@
 #include "FrameBuffer.h"
+#include <cstddef>
 
 
 namespace xoxo
 {
-	Framebuffer::Framebuffer(unsigned int fbo, unsigned int colorBuffers, unsigned int depthBuffer, unsigned int width, unsigned int height)
+	Framebuffer::Framebuffer(unsigned int fbo, unsigned int colorBuffers, unsigned int width, unsigned int height, unsigned int depthBuffer = 0)
 	{
 		colorBuffer[0] = colorBuffers;
 		this->depthBuffer = depthBuffer;
@@ -35,6 +36,34 @@ namespace xoxo
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthBuffer, 0);
 
 
-		return Framebuffer(fbo, colorBuffer, depthBuffer, screenWidth, screenHeight);
+		return Framebuffer(fbo, colorBuffer, screenWidth, screenHeight, depthBuffer);
+	}
+
+	Framebuffer createDepthbuffer(unsigned int depthWidth, unsigned int depthHeight, int depthValue)
+	{
+		unsigned int shadowFBO, shadowMap;
+
+		glGenFramebuffers(1, &shadowFBO);
+		glBindFramebuffer(GL_FRAMEBUFFER, shadowFBO);
+
+		glGenTextures(1, &shadowMap);
+		glBindTexture(GL_TEXTURE_2D, shadowMap);
+		glTexStorage2D(GL_TEXTURE_2D, 1, depthValue, depthWidth, depthHeight);
+
+		glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_COMPONENT16, shadowMap, 0);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+
+		float boarderColor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+		glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, boarderColor);
+
+		glDrawBuffer(GL_NONE);
+		glReadBuffer(GL_NONE);
+
+		return Framebuffer(shadowFBO, shadowMap, depthWidth, depthHeight);
 	}
 }
