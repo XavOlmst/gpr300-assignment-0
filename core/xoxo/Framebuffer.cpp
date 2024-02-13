@@ -4,9 +4,18 @@
 
 namespace xoxo
 {
+	Framebuffer::Framebuffer()
+	{
+		colorBuffer = 0;
+		depthBuffer = 0;
+		width = 0;
+		height = 0;
+		fbo = 0;
+	}
+
 	Framebuffer::Framebuffer(unsigned int fbo, unsigned int colorBuffers, unsigned int width, unsigned int height, unsigned int depthBuffer = 0)
 	{
-		colorBuffer[0] = colorBuffers;
+		colorBuffer = colorBuffers;
 		this->depthBuffer = depthBuffer;
 		this->height = height;
 		this->width = width;
@@ -39,7 +48,7 @@ namespace xoxo
 		return Framebuffer(fbo, colorBuffer, screenWidth, screenHeight, depthBuffer);
 	}
 
-	Framebuffer createDepthbuffer(unsigned int depthWidth, unsigned int depthHeight, int depthValue)
+	Framebuffer createDepthbuffer(unsigned int depthWidth , unsigned int depthHeight , int depthValue )
 	{
 		unsigned int shadowFBO, shadowMap;
 
@@ -50,7 +59,7 @@ namespace xoxo
 		glBindTexture(GL_TEXTURE_2D, shadowMap);
 		glTexStorage2D(GL_TEXTURE_2D, 1, depthValue, depthWidth, depthHeight);
 
-		glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_COMPONENT16, shadowMap, 0);
+
 
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -61,9 +70,15 @@ namespace xoxo
 		float boarderColor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
 		glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, boarderColor);
 
+		glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, shadowMap, 0);
+
 		glDrawBuffer(GL_NONE);
 		glReadBuffer(GL_NONE);
 
-		return Framebuffer(shadowFBO, shadowMap, depthWidth, depthHeight);
+
+
+		//glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+		return Framebuffer(shadowFBO, 0, depthWidth, depthHeight, shadowMap);
 	}
 }

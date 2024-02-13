@@ -19,6 +19,7 @@
 void framebufferSizeCallback(GLFWwindow* window, int width, int height);
 GLFWwindow* initWindow(const char* title, int width, int height);
 void drawUI();
+void drawScene(ew::Shader shader, glm::mat4 matrix);
 
 //Global state
 int screenWidth = 1080;
@@ -40,21 +41,9 @@ struct Material {
 	float Shininess = 128;
 }material;
 
-GLfloat vertices[] =
-{
-	0,0,
-	0,1,
-	1,0,
-	1,1,
-};
-
-GLuint indicies[] =
-{
-	0, 1, 2,
-	2, 3, 0
-};
-
-int kernalIndex = 0;
+xoxo::Framebuffer shadowBuffer;
+ew::Transform monkeyTransform;
+ew::Transform planeTransform;
 
 int main() {	
 	GLFWwindow* window = initWindow("Assignment 1", screenWidth, screenHeight);
@@ -66,32 +55,34 @@ int main() {
 	camera.fov = 60.0f; //Vertical field of view, in degrees
 
 	shadowCamera.orthographic = true;
-	shadowCamera.aspectRatio = 10.0f / 10.0f;
+	shadowCamera.target = glm::vec3(0.0f, 0.0f, 0.0f);
+	shadowCamera.position = lightDir * -1.0f;
+	shadowCamera.aspectRatio = 1;
 	shadowCamera.orthoHeight = 10.0f;
-	glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, shadowCamera.nearPlane, shadowCamera.farPlane);
-	glm::mat4 lightView = glm::lookAt(lightDir, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-	glm::mat4 lightSpaceMatrix = lightProjection * lightView;
+	//shadowCamera.farPlane = 10.0f;
+	shadowCamera.nearPlane = 0.1f;
+
+	glm::mat4 lightProjectionView = shadowCamera.projectionMatrix() * shadowCamera.viewMatrix();
 
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_BACK); //Back face culling
 	glEnable(GL_DEPTH_TEST); //Depth testing
 
 	ew::Shader shader = ew::Shader("assets/lit.vert", "assets/lit.frag");
-	ew::Shader postProcessingShader = ew::Shader("assets/postProc.vert", "assets/postProc.frag");
+	ew::Shader shadowShader = ew::Shader("assets/shadow.vert", "assets/shadow.frag");
+	shadowBuffer = xoxo::createDepthbuffer();
+	//xoxo::Framebuffer renderBuffer = xoxo::createFramebuffer(screenWidth, screenHeight, GL_RGBA8);
+
 	ew::Model monkeyModel = ew::Model("assets/suzanne.fbx");
 	ew::Mesh planeMesh = ew::Mesh(ew::createPlane(10, 10, 5));
-	ew::Transform monkeyTransform;
 
 	GLuint rockTexture = ew::loadTexture("assets/rock.jpg");
-	xoxo::Framebuffer framebuffer = xoxo::createFramebuffer(screenWidth, screenHeight, GL_RGBA8);
-
-	GLenum fboStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-	if (fboStatus != GL_FRAMEBUFFER_COMPLETE) {
-		printf("Framebuffer incomplete: %d", fboStatus);
-	}
+	GLuint brickTexture = ew::loadTexture("assets/brick_color.jpg");
 
 	shader.use();
 	shader.setInt("_MainTex", 0);
+
+	planeTransform.position.y -= 1;
 
 	unsigned int unintelligentVAO;
 	glCreateVertexArrays(1, &unintelligentVAO);
@@ -103,25 +94,31 @@ int main() {
 		deltaTime = time - prevFrameTime;
 		prevFrameTime = time;
 
-		if (kernalIndex <= 2)
-		{
-			glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.fbo);
-			glViewport(0, 0, framebuffer.width, framebuffer.height);
-		}
-		else
-		{
-			glBindFramebuffer(GL_FRAMEBUFFER, 0);
-		}
-
+		lightProjectionView = shadowCamera.projectionMatrix() * shadowCamera.viewMatrix();
 		//RENDER
-		glClearColor(0.6f,0.8f,0.92f,1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		drawScene(shadowShader, lightProjectionView);
+
+		glBindFramebuffer(GL_FRAMEBUFFER, shadowBuffer.fbo);
+		glViewport(0, 0, shadowBuffer.width, shadowBuffer.height);
+		glClear(GL_DEPTH_BUFFER_BIT);
 
 		glBindTextureUnit(0, rockTexture);
+		shadowShader.setMat4("_Model", monkeyTransform.modelMatrix());
+		monkeyModel.draw();
+
+		glBindTextureUnit(0, brickTexture);
+		shadowShader.setMat4("_Model", planeTransform.modelMatrix());
+		planeMesh.draw();
+
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glViewport(0, 0, screenWidth, screenHeight);
+		glClearColor(0.6f, 0.8f, 0.92f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		monkeyTransform.rotation = glm::rotate(monkeyTransform.rotation, deltaTime, glm::vec3(0.0, 1.0, 0.0));
+		
+		drawScene(shader, camera.projectionMatrix() * camera.viewMatrix());
 
-		shader.use();
 		shader.setVec3("_EyePos", camera.position);
 		shader.setVec3("_LightDirection", lightDir);
 		shader.setVec3("_LightColor", lightColor);
@@ -132,32 +129,29 @@ int main() {
 		shader.setFloat("_Material.Ks", material.Ks);
 		shader.setFloat("_Material.Shininess", material.Shininess);
 
-		shader.setMat4("_ViewProjection", camera.projectionMatrix() * camera.viewMatrix());
-		shader.setMat4("_Model", monkeyTransform.modelMatrix());
 
+		glBindTextureUnit(0, rockTexture);
+		shader.setMat4("_Model", monkeyTransform.modelMatrix());
 		monkeyModel.draw();
+
+		glBindTextureUnit(0, brickTexture);
+		shader.setMat4("_Model", planeTransform.modelMatrix());
 		planeMesh.draw();
 
+
 		cameraController.move(window, &camera, deltaTime);
-
-		if (kernalIndex <= 2)
-		{
-			glBindFramebuffer(GL_FRAMEBUFFER, 0);
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-			postProcessingShader.use();
-			postProcessingShader.setInt("_KernalIndex", kernalIndex);
-		}
-		
-		glBindTextureUnit(0, *framebuffer.colorBuffer);
-		glBindVertexArray(unintelligentVAO);
-		glDrawArrays(GL_TRIANGLES, 0, 3);
 
 		drawUI();
 
 		glfwSwapBuffers(window);
 	}
 	printf("Shutting down...");
+}
+
+void drawScene(ew::Shader shader, glm::mat4 projectionViewMatrix)
+{
+	shader.use();
+	shader.setMat4("_ViewProjection", projectionViewMatrix);
 }
 
 void resetCamera(ew::Camera* camera, ew::CameraController* contoller)
@@ -201,11 +195,16 @@ void drawUI() {
 		ambientLight = glm::vec3(ambientLightdata[0] / 255, ambientLightdata[1] / 255, ambientLightdata[2] / 255);
 	}
 
-	if (ImGui::CollapsingHeader("Kernal Selection"))
-	{
-		ImGui::SliderInt("Kernal Index", &kernalIndex, 0, 3);
-	}
+	ImGui::End();
 
+	ImGui::Begin("Shadow Map");
+	ImGui::BeginChild("Shadow Map");
+
+	ImVec2 windowSize = ImGui::GetWindowSize();
+
+	ImGui::Image((ImTextureID)shadowBuffer.depthBuffer, windowSize, ImVec2(0, 1), ImVec2(1, 0));
+
+	ImGui::EndChild();
 	ImGui::End();
 
 	ImGui::Render();
