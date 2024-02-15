@@ -13,7 +13,7 @@ namespace xoxo
 		fbo = 0;
 	}
 
-	Framebuffer::Framebuffer(unsigned int fbo, unsigned int colorBuffers, unsigned int width, unsigned int height, unsigned int depthBuffer = 0)
+	Framebuffer::Framebuffer(unsigned int fbo, unsigned int colorBuffers, unsigned int depthBuffer, unsigned int width, unsigned int height)
 	{
 		colorBuffer = colorBuffers;
 		this->depthBuffer = depthBuffer;
@@ -45,7 +45,7 @@ namespace xoxo
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthBuffer, 0);
 
 
-		return Framebuffer(fbo, colorBuffer, screenWidth, screenHeight, depthBuffer);
+		return Framebuffer(fbo, colorBuffer, depthBuffer, screenWidth, screenHeight);
 	}
 
 	Framebuffer createDepthbuffer(unsigned int depthWidth , unsigned int depthHeight , int depthValue )
@@ -58,8 +58,6 @@ namespace xoxo
 		glGenTextures(1, &shadowMap);
 		glBindTexture(GL_TEXTURE_2D, shadowMap);
 		glTexStorage2D(GL_TEXTURE_2D, 1, depthValue, depthWidth, depthHeight);
-
-
 
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -75,10 +73,6 @@ namespace xoxo
 		glDrawBuffer(GL_NONE);
 		glReadBuffer(GL_NONE);
 
-
-
-		//glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-		return Framebuffer(shadowFBO, 0, depthWidth, depthHeight, shadowMap);
+		return Framebuffer(shadowFBO, 0, shadowMap, depthWidth, depthHeight);
 	}
 }

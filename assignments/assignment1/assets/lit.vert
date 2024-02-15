@@ -6,11 +6,13 @@ layout(location =2) in vec2 vTexCoords;
 
 uniform mat4 _Model; 
 uniform mat4 _ViewProjection; 
+uniform mat4 _LightViewProjection;
 
 out Surface{
 	vec3 WorldPos;
 	vec3 WorldNormal;
 	vec2 TexCoords;
+	vec4 LightSpacePos;
 }vs_out;
 
 void main(){
@@ -18,5 +20,6 @@ void main(){
 	vs_out.WorldNormal = transpose(inverse(mat3(_Model))) * vNormal;
 
 	vs_out.TexCoords = vTexCoords;
+	vs_out.LightSpacePos = _LightViewProjection * _Model * vec4(vs_out.WorldPos, 1.0);
 	gl_Position = _ViewProjection * _Model * vec4(vPos,1.0);
 }

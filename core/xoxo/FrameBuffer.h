@@ -5,7 +5,7 @@ namespace xoxo
 {
 	struct Framebuffer
 	{
-		Framebuffer(unsigned int fbo, unsigned int colorBuffer, unsigned int width, unsigned int height, unsigned int depthBuffer);
+		Framebuffer(unsigned int fbo, unsigned int colorBuffer, unsigned int depthBuffer, unsigned int width, unsigned int height);
 		Framebuffer();
 
 		unsigned int fbo;

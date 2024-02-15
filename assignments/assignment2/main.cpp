@@ -30,15 +30,14 @@ ew::Camera camera;
 ew::Camera shadowCamera;
 ew::CameraController cameraController;
 
-glm::vec3 lightDir(0.0, -1.0, 0.0);
-glm::vec3 lightColor(1.0);
-glm::vec3 ambientLight(0.3, 0.4, 0.46);
+glm::vec3 lightDir(0.01f, -1.0f, 0.01f);
+glm::vec3 lightColor(1.0f);
 
 struct Material {
-	float Ka = 1.0;
-	float Kd = 0.5;
-	float Ks = 0.5;
-	float Shininess = 128;
+	float Ka = 0.15f;
+	float Kd = 0.5f;
+	float Ks = 0.5f;
+	float Shininess = 128.0f;
 }material;
 
 xoxo::Framebuffer shadowBuffer;
@@ -56,11 +55,10 @@ int main() {
 
 	shadowCamera.orthographic = true;
 	shadowCamera.target = glm::vec3(0.0f, 0.0f, 0.0f);
-	shadowCamera.position = lightDir * -1.0f;
+	shadowCamera.position = -lightDir;
 	shadowCamera.aspectRatio = 1;
 	shadowCamera.orthoHeight = 10.0f;
-	//shadowCamera.farPlane = 10.0f;
-	shadowCamera.nearPlane = 0.1f;
+	shadowCamera.farPlane = lightDir.length() + 1.0f;
 
 	glm::mat4 lightProjectionView = shadowCamera.projectionMatrix() * shadowCamera.viewMatrix();
 
@@ -84,8 +82,8 @@ int main() {
 
 	planeTransform.position.y -= 1;
 
-	unsigned int unintelligentVAO;
-	glCreateVertexArrays(1, &unintelligentVAO);
+	//unsigned int unintelligentVAO;
+	//glCreateVertexArrays(1, &unintelligentVAO);
 
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
@@ -94,13 +92,15 @@ int main() {
 		deltaTime = time - prevFrameTime;
 		prevFrameTime = time;
 
-		lightProjectionView = shadowCamera.projectionMatrix() * shadowCamera.viewMatrix();
 		//RENDER
-		drawScene(shadowShader, lightProjectionView);
-
 		glBindFramebuffer(GL_FRAMEBUFFER, shadowBuffer.fbo);
 		glViewport(0, 0, shadowBuffer.width, shadowBuffer.height);
 		glClear(GL_DEPTH_BUFFER_BIT);
+
+		shadowCamera.position = -lightDir;
+
+		lightProjectionView = shadowCamera.projectionMatrix() * shadowCamera.viewMatrix();
+		drawScene(shadowShader, lightProjectionView);
 
 		glBindTextureUnit(0, rockTexture);
 		shadowShader.setMat4("_Model", monkeyTransform.modelMatrix());
@@ -119,16 +119,8 @@ int main() {
 		
 		drawScene(shader, camera.projectionMatrix() * camera.viewMatrix());
 
-		shader.setVec3("_EyePos", camera.position);
-		shader.setVec3("_LightDirection", lightDir);
-		shader.setVec3("_LightColor", lightColor);
-		shader.setVec3("_AmbientColor", ambientLight);
-
-		shader.setFloat("_Material.Ka", material.Ka);
-		shader.setFloat("_Material.Kd", material.Kd);
-		shader.setFloat("_Material.Ks", material.Ks);
-		shader.setFloat("_Material.Shininess", material.Shininess);
-
+		shader.setMat4("_LightViewProjection", lightProjectionView);
+		shader.setInt("_ShadowMap", shadowBuffer.depthBuffer);
 
 		glBindTextureUnit(0, rockTexture);
 		shader.setMat4("_Model", monkeyTransform.modelMatrix());
@@ -137,6 +129,18 @@ int main() {
 		glBindTextureUnit(0, brickTexture);
 		shader.setMat4("_Model", planeTransform.modelMatrix());
 		planeMesh.draw();
+
+
+
+		shader.setVec3("_EyePos", camera.position);
+		shader.setVec3("_LightDirection", lightDir);
+		shader.setVec3("_LightColor", lightColor);
+
+		shader.setFloat("_Material.Ka", material.Ka);
+		shader.setFloat("_Material.Kd", material.Kd);
+		shader.setFloat("_Material.Ks", material.Ks);
+		shader.setFloat("_Material.Shininess", material.Shininess);
+
 
 
 		cameraController.move(window, &camera, deltaTime);
@@ -184,15 +188,12 @@ void drawUI() {
 	{
 		float lightPosition[3] = { lightDir.x, lightDir.y, lightDir.z };
 		float lightColorData[3] = { lightColor.r * 255, lightColor.g * 255, lightColor.b * 255 };
-		float ambientLightdata[3] = { ambientLight.r * 255, ambientLight.g * 255, ambientLight.b * 255 };
 
 		ImGui::SliderFloat3("Light Direction", lightPosition, -2.5, 2.5);
 		ImGui::SliderFloat3("Light Color", lightColorData, 0, 255);
-		ImGui::SliderFloat3("Ambient Light", ambientLightdata, 0, 255);
 
 		lightDir = glm::vec3(lightPosition[0], lightPosition[1], lightPosition[2]);
 		lightColor = glm::vec3(lightColorData[0] / 255, lightColorData[1] / 255, lightColorData[2] / 255);
-		ambientLight = glm::vec3(ambientLightdata[0] / 255, ambientLightdata[1] / 255, ambientLightdata[2] / 255);
 	}
 
 	ImGui::End();
