@@ -58,7 +58,7 @@ int main() {
 	shadowCamera.position = -lightDir;
 	shadowCamera.aspectRatio = 1;
 	shadowCamera.orthoHeight = 10.0f;
-	shadowCamera.farPlane = lightDir.length() + 1.0f;
+	shadowCamera.farPlane = 14.0f;
 
 	glm::mat4 lightProjectionView = shadowCamera.projectionMatrix() * shadowCamera.viewMatrix();
 
@@ -97,7 +97,9 @@ int main() {
 		glViewport(0, 0, shadowBuffer.width, shadowBuffer.height);
 		glClear(GL_DEPTH_BUFFER_BIT);
 
-		shadowCamera.position = -lightDir;
+		glCullFace(GL_FRONT);
+
+		shadowCamera.position =  -lightDir;
 
 		lightProjectionView = shadowCamera.projectionMatrix() * shadowCamera.viewMatrix();
 		drawScene(shadowShader, lightProjectionView);
@@ -106,9 +108,11 @@ int main() {
 		shadowShader.setMat4("_Model", monkeyTransform.modelMatrix());
 		monkeyModel.draw();
 
-		glBindTextureUnit(0, brickTexture);
-		shadowShader.setMat4("_Model", planeTransform.modelMatrix());
-		planeMesh.draw();
+		//glBindTextureUnit(0, brickTexture);
+		//shadowShader.setMat4("_Model", planeTransform.modelMatrix());
+		//planeMesh.draw();
+
+		glCullFace(GL_BACK);
 
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		glViewport(0, 0, screenWidth, screenHeight);
@@ -119,8 +123,10 @@ int main() {
 		
 		drawScene(shader, camera.projectionMatrix() * camera.viewMatrix());
 
+		glBindTextureUnit(1, shadowBuffer.depthBuffer);
+
 		shader.setMat4("_LightViewProjection", lightProjectionView);
-		shader.setInt("_ShadowMap", shadowBuffer.depthBuffer);
+		shader.setInt("_ShadowMap", 1);
 
 		glBindTextureUnit(0, rockTexture);
 		shader.setMat4("_Model", monkeyTransform.modelMatrix());
@@ -131,9 +137,8 @@ int main() {
 		planeMesh.draw();
 
 
-
 		shader.setVec3("_EyePos", camera.position);
-		shader.setVec3("_LightDirection", lightDir);
+		shader.setVec3("_LightDirection", glm::normalize(lightDir));
 		shader.setVec3("_LightColor", lightColor);
 
 		shader.setFloat("_Material.Ka", material.Ka);
@@ -189,7 +194,7 @@ void drawUI() {
 		float lightPosition[3] = { lightDir.x, lightDir.y, lightDir.z };
 		float lightColorData[3] = { lightColor.r * 255, lightColor.g * 255, lightColor.b * 255 };
 
-		ImGui::SliderFloat3("Light Direction", lightPosition, -2.5, 2.5);
+		ImGui::SliderFloat3("Light Direction", lightPosition, -5, 5);
 		ImGui::SliderFloat3("Light Color", lightColorData, 0, 255);
 
 		lightDir = glm::vec3(lightPosition[0], lightPosition[1], lightPosition[2]);
