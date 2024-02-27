@@ -9,7 +9,7 @@ namespace xoxo
 		Framebuffer();
 
 		unsigned int fbo;
-		unsigned int colorBuffer;
+		unsigned int colorBuffer[8];
 		unsigned int depthBuffer;
 		unsigned int width;
 		unsigned int height;
@@ -17,4 +17,5 @@ namespace xoxo
 
 	Framebuffer createFramebuffer(unsigned int screenWidth, unsigned int screenHeight, int colorFormat);
 	Framebuffer createDepthbuffer(unsigned int depthWidth = 2048, unsigned int depthHeight = 2048, int depthValue = GL_DEPTH_COMPONENT16);
+	Framebuffer createGBuffer(unsigned int width, unsigned int height);
 }
