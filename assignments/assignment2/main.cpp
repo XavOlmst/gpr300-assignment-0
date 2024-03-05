@@ -69,7 +69,6 @@ int main() {
 	ew::Shader shader = ew::Shader("assets/lit.vert", "assets/lit.frag");
 	ew::Shader shadowShader = ew::Shader("assets/shadow.vert", "assets/shadow.frag");
 	shadowBuffer = xoxo::createDepthbuffer();
-	//xoxo::Framebuffer renderBuffer = xoxo::createFramebuffer(screenWidth, screenHeight, GL_RGBA8);
 
 	ew::Model monkeyModel = ew::Model("assets/suzanne.fbx");
 	ew::Mesh planeMesh = ew::Mesh(ew::createPlane(10, 10, 5));
@@ -108,9 +107,9 @@ int main() {
 		shadowShader.setMat4("_Model", monkeyTransform.modelMatrix());
 		monkeyModel.draw();
 
-		//glBindTextureUnit(0, brickTexture);
-		//shadowShader.setMat4("_Model", planeTransform.modelMatrix());
-		//planeMesh.draw();
+		glBindTextureUnit(0, brickTexture);
+		shader.setMat4("_Model", planeTransform.modelMatrix());
+		planeMesh.draw();
 
 		glCullFace(GL_BACK);
 
@@ -119,14 +118,11 @@ int main() {
 		glClearColor(0.6f, 0.8f, 0.92f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		monkeyTransform.rotation = glm::rotate(monkeyTransform.rotation, deltaTime, glm::vec3(0.0, 1.0, 0.0));
+		//monkeyTransform.rotation = glm::rotate(monkeyTransform.rotation, deltaTime, glm::vec3(0.0, 1.0, 0.0));
 		
 		drawScene(shader, camera.projectionMatrix() * camera.viewMatrix());
 
 		glBindTextureUnit(1, shadowBuffer.depthBuffer);
-
-		shader.setMat4("_LightViewProjection", lightProjectionView);
-		shader.setInt("_ShadowMap", 1);
 
 		glBindTextureUnit(0, rockTexture);
 		shader.setMat4("_Model", monkeyTransform.modelMatrix());
@@ -135,6 +131,11 @@ int main() {
 		glBindTextureUnit(0, brickTexture);
 		shader.setMat4("_Model", planeTransform.modelMatrix());
 		planeMesh.draw();
+
+		shader.setMat4("_LightViewProjection", lightProjectionView);
+		shader.setInt("_ShadowMap", 1);
+
+
 
 
 		shader.setVec3("_EyePos", camera.position);

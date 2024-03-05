@@ -41,10 +41,17 @@ struct Material {
 }material;
 
 xoxo::Framebuffer shadowBuffer;
+xoxo::Framebuffer gBuffer;
 ew::Transform monkeyTransform;
 ew::Transform planeTransform;
 
-int main() {	
+ew::Model monkeyModel;
+ew::Mesh planeMesh;
+
+GLuint rockTexture;
+GLuint brickTexture;
+
+int main() {
 	GLFWwindow* window = initWindow("Assignment 1", screenWidth, screenHeight);
 	glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
 
@@ -60,30 +67,34 @@ int main() {
 	shadowCamera.orthoHeight = 10.0f;
 	shadowCamera.farPlane = 14.0f;
 
-	glm::mat4 lightProjectionView = shadowCamera.projectionMatrix() * shadowCamera.viewMatrix();
-
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_BACK); //Back face culling
 	glEnable(GL_DEPTH_TEST); //Depth testing
 
+	glm::mat4 lightProjectionView;
+
 	ew::Shader shader = ew::Shader("assets/lit.vert", "assets/lit.frag");
 	ew::Shader shadowShader = ew::Shader("assets/shadow.vert", "assets/shadow.frag");
+	ew::Shader geometryShader = ew::Shader("assets/geometryPass.vert", "assets/geometryPass.frag");
+	ew::Shader deferredShader = ew::Shader("assets/deferredLit.vert", "assets/deferredLit.frag");
 	shadowBuffer = xoxo::createDepthbuffer();
-	//xoxo::Framebuffer renderBuffer = xoxo::createFramebuffer(screenWidth, screenHeight, GL_RGBA8);
+	gBuffer = xoxo::createGBuffer(screenWidth, screenHeight);
+	xoxo::Framebuffer framebuffer = xoxo::createFramebuffer(screenWidth, screenHeight, GL_RGBA8);
 
-	ew::Model monkeyModel = ew::Model("assets/suzanne.fbx");
-	ew::Mesh planeMesh = ew::Mesh(ew::createPlane(10, 10, 5));
 
-	GLuint rockTexture = ew::loadTexture("assets/rock.jpg");
-	GLuint brickTexture = ew::loadTexture("assets/brick_color.jpg");
+	monkeyModel = ew::Model("assets/suzanne.fbx");
+	planeMesh = ew::Mesh(ew::createPlane(10, 10, 5));
+
+	rockTexture = ew::loadTexture("assets/rock.jpg");
+	brickTexture = ew::loadTexture("assets/brick_color.jpg");
 
 	shader.use();
 	shader.setInt("_MainTex", 0);
 
 	planeTransform.position.y -= 1;
 
-	//unsigned int unintelligentVAO;
-	//glCreateVertexArrays(1, &unintelligentVAO);
+	unsigned int unintelligentVAO;
+	glCreateVertexArrays(1, &unintelligentVAO);
 
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
@@ -92,6 +103,38 @@ int main() {
 		deltaTime = time - prevFrameTime;
 		prevFrameTime = time;
 
+		glBindFramebuffer(GL_FRAMEBUFFER, gBuffer.fbo);
+		glViewport(0, 0, gBuffer.width, gBuffer.height);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		drawScene(geometryShader, camera.projectionMatrix() * camera.viewMatrix());
+
+		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.fbo);
+		glViewport(0, 0, framebuffer.width, framebuffer.height);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		deferredShader.use();
+
+		//deferredShader.setMat4("_LightViewProjection", lightProjectionView);
+		//deferredShader.setInt("_ShadowMap", 1);
+		deferredShader.setMat4("_LightProjectionView", lightProjectionView);
+		deferredShader.setVec3("_EyePos", camera.position);
+		deferredShader.setVec3("_LightDirection", glm::normalize(lightDir));
+		deferredShader.setVec3("_LightColor", lightColor);
+
+		deferredShader.setFloat("_Material.Ka", material.Ka);
+		deferredShader.setFloat("_Material.Kd", material.Kd);
+		deferredShader.setFloat("_Material.Ks", material.Ks);
+		deferredShader.setFloat("_Material.Shininess", material.Shininess);
+
+		glBindTextureUnit(0, gBuffer.colorBuffer[0]);
+		glBindTextureUnit(1, gBuffer.colorBuffer[1]);
+		glBindTextureUnit(2, gBuffer.colorBuffer[2]);
+		//glBindTextureUnit(3, shadowBuffer.depthBuffer);
+
+		glBindVertexArray(unintelligentVAO);
+		glDrawArrays(GL_TRIANGLES, 0, 3);
+
 		//RENDER
 		glBindFramebuffer(GL_FRAMEBUFFER, shadowBuffer.fbo);
 		glViewport(0, 0, shadowBuffer.width, shadowBuffer.height);
@@ -99,18 +142,10 @@ int main() {
 
 		glCullFace(GL_FRONT);
 
-		shadowCamera.position =  -lightDir;
+		shadowCamera.position = -lightDir;
 
 		lightProjectionView = shadowCamera.projectionMatrix() * shadowCamera.viewMatrix();
 		drawScene(shadowShader, lightProjectionView);
-
-		glBindTextureUnit(0, rockTexture);
-		shadowShader.setMat4("_Model", monkeyTransform.modelMatrix());
-		monkeyModel.draw();
-
-		//glBindTextureUnit(0, brickTexture);
-		//shadowShader.setMat4("_Model", planeTransform.modelMatrix());
-		//planeMesh.draw();
 
 		glCullFace(GL_BACK);
 
@@ -119,23 +154,14 @@ int main() {
 		glClearColor(0.6f, 0.8f, 0.92f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		monkeyTransform.rotation = glm::rotate(monkeyTransform.rotation, deltaTime, glm::vec3(0.0, 1.0, 0.0));
-		
+		//monkeyTransform.rotation = glm::rotate(monkeyTransform.rotation, deltaTime, glm::vec3(0.0, 1.0, 0.0));
+
 		drawScene(shader, camera.projectionMatrix() * camera.viewMatrix());
 
 		glBindTextureUnit(1, shadowBuffer.depthBuffer);
 
 		shader.setMat4("_LightViewProjection", lightProjectionView);
 		shader.setInt("_ShadowMap", 1);
-
-		glBindTextureUnit(0, rockTexture);
-		shader.setMat4("_Model", monkeyTransform.modelMatrix());
-		monkeyModel.draw();
-
-		glBindTextureUnit(0, brickTexture);
-		shader.setMat4("_Model", planeTransform.modelMatrix());
-		planeMesh.draw();
-
 
 		shader.setVec3("_EyePos", camera.position);
 		shader.setVec3("_LightDirection", glm::normalize(lightDir));
@@ -145,8 +171,6 @@ int main() {
 		shader.setFloat("_Material.Kd", material.Kd);
 		shader.setFloat("_Material.Ks", material.Ks);
 		shader.setFloat("_Material.Shininess", material.Shininess);
-
-
 
 		cameraController.move(window, &camera, deltaTime);
 
@@ -161,6 +185,14 @@ void drawScene(ew::Shader shader, glm::mat4 projectionViewMatrix)
 {
 	shader.use();
 	shader.setMat4("_ViewProjection", projectionViewMatrix);
+
+	glBindTextureUnit(0, rockTexture);
+	shader.setMat4("_Model", monkeyTransform.modelMatrix());
+	monkeyModel.draw();
+
+	glBindTextureUnit(0, brickTexture);
+	shader.setMat4("_Model", planeTransform.modelMatrix());
+	planeMesh.draw();
 }
 
 void resetCamera(ew::Camera* camera, ew::CameraController* contoller)
@@ -212,6 +244,15 @@ void drawUI() {
 
 	ImGui::EndChild();
 	ImGui::End();
+
+	ImGui::Begin("GBuffers"); {
+		ImVec2 texSize = ImVec2(gBuffer.width / 4, gBuffer.height / 4);
+		for (size_t i = 0; i < 3; i++)
+		{
+			ImGui::Image((ImTextureID)gBuffer.colorBuffer[i], texSize, ImVec2(0, 1), ImVec2(1, 0));
+		}
+		ImGui::End();
+	}
 
 	ImGui::Render();
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

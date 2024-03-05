@@ -35,7 +35,6 @@ namespace xoxo
 		glTexStorage2D(GL_TEXTURE_2D, 1, colorFormat, screenWidth, screenHeight);
 
 		glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, colorBuffer, 0);
-
 		unsigned int depthBuffer;
 
 		glGenTextures(1, &depthBuffer);
@@ -45,6 +44,15 @@ namespace xoxo
 
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthBuffer, 0);
 
+		//TODO check for completeness
+		GLenum fboCompleteness = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+		if (fboCompleteness != GL_FRAMEBUFFER_COMPLETE)
+		{
+			printf("Framebuffer Incomplete: %d", fboCompleteness);
+		}
+
+		glBindTexture(GL_TEXTURE_2D, 0);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 		return Framebuffer(fbo, colorBuffer, depthBuffer, screenWidth, screenHeight);
 	}
@@ -73,6 +81,16 @@ namespace xoxo
 
 		glDrawBuffer(GL_NONE);
 		glReadBuffer(GL_NONE);
+
+		//TODO check for completeness
+		GLenum fboCompleteness = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+		if (fboCompleteness != GL_FRAMEBUFFER_COMPLETE)
+		{
+			printf("Framebuffer Incomplete: %d", fboCompleteness);
+		}
+
+		glBindTexture(GL_TEXTURE_2D, 0);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 		return Framebuffer(shadowFBO, 0, shadowMap, depthWidth, depthHeight);
 	}
