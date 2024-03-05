@@ -1,7 +1,7 @@
 #version 450 core
 out vec4 FragColor; 
 in vec2 UV; //From fsTriangle.vert
-in vec4 _LightSpacePos;
+in vec4 LightSpacePos;
 
 //All your material and lighting uniforms go here!
 

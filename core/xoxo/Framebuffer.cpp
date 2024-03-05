@@ -82,7 +82,6 @@ namespace xoxo
 		glDrawBuffer(GL_NONE);
 		glReadBuffer(GL_NONE);
 
-		//TODO check for completeness
 		GLenum fboCompleteness = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 		if (fboCompleteness != GL_FRAMEBUFFER_COMPLETE)
 		{
@@ -92,7 +91,8 @@ namespace xoxo
 		glBindTexture(GL_TEXTURE_2D, 0);
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-		return Framebuffer(shadowFBO, 0, shadowMap, depthWidth, depthHeight);
+		return Framebuffer(shadowFBO, 99,
+			shadowMap, depthWidth, depthHeight);
 	}
 
 	Framebuffer createGBuffer(unsigned int width, unsigned int height)
