@@ -44,15 +44,13 @@ xoxo::Framebuffer shadowBuffer;
 xoxo::Framebuffer gBuffer;
 ew::Transform monkeyTransform;
 ew::Transform planeTransform;
-
 ew::Model monkeyModel;
 ew::Mesh planeMesh;
-
 GLuint rockTexture;
 GLuint brickTexture;
 
-int main() {
-	GLFWwindow* window = initWindow("Assignment 3", screenWidth, screenHeight);
+int main() {	
+	GLFWwindow* window = initWindow("Assignment 3^(2)", screenWidth, screenHeight);
 	glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
 
 	camera.position = glm::vec3(0.0f, 0.0f, 5.0f);
@@ -67,19 +65,17 @@ int main() {
 	shadowCamera.orthoHeight = 10.0f;
 	shadowCamera.farPlane = 14.0f;
 
+	glm::mat4 lightProjectionView = shadowCamera.projectionMatrix() * shadowCamera.viewMatrix();
+
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_BACK); //Back face culling
 	glEnable(GL_DEPTH_TEST); //Depth testing
 
-	glm::mat4 lightProjectionView;
-
-	//ew::Shader shader = ew::Shader("assets/lit.vert", "assets/lit.frag");
+	ew::Shader shader = ew::Shader("assets/lit.vert", "assets/lit.frag");
 	ew::Shader shadowShader = ew::Shader("assets/shadow.vert", "assets/shadow.frag");
-	ew::Shader geometryShader = ew::Shader("assets/geometryPass.vert", "assets/geometryPass.frag");
-	ew::Shader deferredShader = ew::Shader("assets/deferredLit.vert", "assets/deferredLit.frag");
+	ew::Shader gBufferShader = ew::Shader("assets/geometryPass.vert", "assets/geometryPass.frag");
 	shadowBuffer = xoxo::createDepthbuffer();
 	gBuffer = xoxo::createGBuffer(screenWidth, screenHeight);
-
 
 	monkeyModel = ew::Model("assets/suzanne.fbx");
 	planeMesh = ew::Mesh(ew::createPlane(10, 10, 5));
@@ -87,11 +83,13 @@ int main() {
 	rockTexture = ew::loadTexture("assets/rock.jpg");
 	brickTexture = ew::loadTexture("assets/brick_color.jpg");
 
-	deferredShader.use();
-	deferredShader.setInt("_MainTex", 0);
+	shader.use();
+	shader.setInt("_MainTex", 0);
 
-	planeTransform.position.y -= 1;
+	planeTransform.position.y -= 1.2f;
 
+	//unsigned int unintelligentVAO;
+	//glCreateVertexArrays(1, &unintelligentVAO);
 
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
@@ -100,20 +98,17 @@ int main() {
 		deltaTime = time - prevFrameTime;
 		prevFrameTime = time;
 
-
-
 		//Geometry pass
 		{
-		glBindFramebuffer(GL_FRAMEBUFFER, gBuffer.fbo);
-		glViewport(0, 0, gBuffer.width, gBuffer.height);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			glBindFramebuffer(GL_FRAMEBUFFER, gBuffer.fbo);
+			glViewport(0, 0, gBuffer.width, gBuffer.height);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		drawScene(geometryShader,camera);
+			drawScene(gBufferShader, camera);
 		}
 
 		//Shadow pass
 		{
-			//RENDER
 			glBindFramebuffer(GL_FRAMEBUFFER, shadowBuffer.fbo);
 			glViewport(0, 0, shadowBuffer.width, shadowBuffer.height);
 			glClear(GL_DEPTH_BUFFER_BIT);
@@ -121,36 +116,36 @@ int main() {
 			glCullFace(GL_FRONT);
 
 			shadowCamera.position = -lightDir;
+
 			drawScene(shadowShader, shadowCamera);
 
 			glCullFace(GL_BACK);
 		}
 
-		//Lighting pass
-		{
-			glBindFramebuffer(GL_FRAMEBUFFER, 0);
-			glViewport(0, 0, screenWidth, screenHeight);
-			glClearColor(0.6f, 0.8f, 0.92f, 1.0f);
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glViewport(0, 0, screenWidth, screenHeight);
+		glClearColor(0.6f, 0.8f, 0.92f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-			drawScene(deferredShader, camera);
-
-			deferredShader.setMat4("_LightProjectionView", shadowCamera.projectionMatrix() * shadowCamera.viewMatrix());
-			deferredShader.setVec3("_EyePos", camera.position);
-			deferredShader.setVec3("_LightDirection", glm::normalize(lightDir));
-			deferredShader.setVec3("_LightColor", lightColor);
-
-			deferredShader.setFloat("_Material.Ka", material.Ka);
-			deferredShader.setFloat("_Material.Kd", material.Kd);
-			deferredShader.setFloat("_Material.Ks", material.Ks);
-			deferredShader.setFloat("_Material.Shininess", material.Shininess);
-
-			glBindTextureUnit(0, gBuffer.colorBuffer[0]);
-			glBindTextureUnit(1, gBuffer.colorBuffer[1]);
-			glBindTextureUnit(2, gBuffer.colorBuffer[2]);
-			glBindTextureUnit(3, shadowBuffer.depthBuffer);
-		}
+		monkeyTransform.rotation = glm::rotate(monkeyTransform.rotation, deltaTime, glm::vec3(0.0, 1.0, 0.0));
 		
+		drawScene(shader, camera);
+
+		glBindTextureUnit(1, shadowBuffer.depthBuffer);
+
+		shader.setMat4("_LightViewProjection", lightProjectionView);
+		shader.setInt("_ShadowMap", 1);
+
+		shader.setVec3("_EyePos", camera.position);
+		shader.setVec3("_LightDirection", glm::normalize(lightDir));
+		shader.setVec3("_LightColor", lightColor);
+
+		shader.setFloat("_Material.Ka", material.Ka);
+		shader.setFloat("_Material.Kd", material.Kd);
+		shader.setFloat("_Material.Ks", material.Ks);
+		shader.setFloat("_Material.Shininess", material.Shininess);
+
+
 
 		cameraController.move(window, &camera, deltaTime);
 
@@ -214,6 +209,8 @@ void drawUI() {
 	}
 
 	ImGui::End();
+
+
 
 	ImGui::Begin("Shadow Map");
 	ImGui::BeginChild("Shadow Map");

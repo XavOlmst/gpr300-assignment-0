@@ -1,13 +1,15 @@
-#version 450 core
-out vec4 FragColor; 
-in vec2 UV; //From fsTriangle.vert
-//in vec4 LightSpacePos;
+#version 450
+out vec4 FragColor; //The color of this fragment
+in Surface
+{
+	vec3 WorldPos;
+	vec3 WorldNormal;
+	vec2 TexCoords;
+	vec4 LightSpacePos;
+}fs_in; //Interpolated of this fragment 
 
-//All your material and lighting uniforms go here!
-
+uniform sampler2D _ShadowMap;
 uniform sampler2D _MainTex;
-uniform mat4 _Model;
-uniform mat4 _LightViewProjection;
 uniform vec3 _EyePos;
 uniform vec3 _LightDirection = vec3(0.0,-1.0,0.0);
 uniform vec3 _LightColor = vec3(1.0); //White light
@@ -20,13 +22,6 @@ struct Material{
 };
 
 uniform Material _Material;
-
-//layout(binding = i) can be used as an alternative to shader.setInt()
-//Each sampler will always be bound to a specific texture unit
-uniform layout(binding = 0) sampler2D _gPositions;
-uniform layout(binding = 1) sampler2D _gNormals;
-uniform layout(binding = 2) sampler2D _gAlbedo;
-uniform layout(binding = 3) sampler2D _ShadowMap;
 
 float calcShadow(sampler2D shadowMap, vec4 lightSpacePos, float bias)
 {
@@ -57,8 +52,9 @@ float calcShadow(sampler2D shadowMap, vec4 lightSpacePos, float bias)
 	return totalShadow;
 }
 
-vec3 calculateLighting(vec3 normal, vec3 pos, vec3 albedo)
-{
+void main(){
+	//Shade with 0-1 normal
+	vec3 normal = normalize(fs_in.WorldNormal);
 	vec3 toLight = -_LightDirection;
 
 	vec3 ambient = _Material.Ka * _LightColor;
@@ -66,28 +62,18 @@ vec3 calculateLighting(vec3 normal, vec3 pos, vec3 albedo)
 	float difuseFactor = max(dot(normal, toLight),0.0f);
 	vec3 diffuse = difuseFactor * _LightColor;
 
-	vec3 toEye = normalize(_EyePos - pos);
+	vec3 toEye = normalize(_EyePos - fs_in.WorldPos);
 	vec3 h = normalize(toLight + toEye);
 
 	float specularFactor = pow(max(dot(normal,h),0.0f), _Material.Shininess);
 	vec3 specular = specularFactor * _LightColor;
 
 	float bias = max(0.05 * (1.0 - dot(normal, _LightDirection)), 0.005);
-	float shadow = calcShadow(_ShadowMap, _LightViewProjection * _Model * vec4(pos, 1.0f), bias);
+	float shadow = calcShadow(_ShadowMap, fs_in.LightSpacePos, bias);
 
-	vec3 lighting = ambient + (diffuse + specular);// * (1.0f - shadow);
+	vec3 lighting = ambient + (diffuse + specular) * (1.0f - shadow);
 
-	return lighting;
-}
+	vec3 objColor = texture(_MainTex, fs_in.TexCoords).rgb;
 
-
-void main(){
-	//Sample surface properties for this screen pixel
-	vec3 normal = texture(_gNormals,UV).xyz;
-	vec3 worldPos = texture(_gPositions,UV).xyz;
-	vec3 albedo = texture(_gAlbedo,UV).xyz;
-
-	//Worldspace lighting calculations, same as in forward shading
-	vec3 lightColor = calculateLighting(normal,worldPos,albedo);
-	FragColor = vec4(albedo * lightColor,1.0);
+	FragColor = vec4(lighting * objColor, 1.0f);
 }
