@@ -87,11 +87,13 @@ int main() {
 	rockTexture = ew::loadTexture("assets/rock.jpg");
 	brickTexture = ew::loadTexture("assets/brick_color.jpg");
 
-	deferredShader.use();
-	deferredShader.setInt("_MainTex", 0);
+	//deferredShader.use();
+	//deferredShader.setInt("_MainTex", 0);
 
-	planeTransform.position.y -= 1;
+	planeTransform.position.y -= 1.2f;
 
+	unsigned int unintelligentVAO;
+	glCreateVertexArrays(1, &unintelligentVAO);
 
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
@@ -100,15 +102,14 @@ int main() {
 		deltaTime = time - prevFrameTime;
 		prevFrameTime = time;
 
-
-
 		//Geometry pass
 		{
-		glBindFramebuffer(GL_FRAMEBUFFER, gBuffer.fbo);
-		glViewport(0, 0, gBuffer.width, gBuffer.height);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			glBindFramebuffer(GL_FRAMEBUFFER, gBuffer.fbo);
+			glViewport(0, 0, gBuffer.width, gBuffer.height);
+			glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		drawScene(geometryShader,camera);
+			drawScene(geometryShader,camera);
 		}
 
 		//Shadow pass
@@ -118,12 +119,12 @@ int main() {
 			glViewport(0, 0, shadowBuffer.width, shadowBuffer.height);
 			glClear(GL_DEPTH_BUFFER_BIT);
 
-			glCullFace(GL_FRONT);
+			//glCullFace(GL_FRONT);
 
 			shadowCamera.position = -lightDir;
 			drawScene(shadowShader, shadowCamera);
 
-			glCullFace(GL_BACK);
+			//glCullFace(GL_BACK);
 		}
 
 		//Lighting pass
@@ -133,9 +134,8 @@ int main() {
 			glClearColor(0.6f, 0.8f, 0.92f, 1.0f);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-			drawScene(deferredShader, camera);
-
-			deferredShader.setMat4("_LightProjectionView", shadowCamera.projectionMatrix() * shadowCamera.viewMatrix());
+			deferredShader.use();
+			deferredShader.setMat4("_LightViewProjection", shadowCamera.projectionMatrix() * shadowCamera.viewMatrix());
 			deferredShader.setVec3("_EyePos", camera.position);
 			deferredShader.setVec3("_LightDirection", glm::normalize(lightDir));
 			deferredShader.setVec3("_LightColor", lightColor);
@@ -149,6 +149,9 @@ int main() {
 			glBindTextureUnit(1, gBuffer.colorBuffer[1]);
 			glBindTextureUnit(2, gBuffer.colorBuffer[2]);
 			glBindTextureUnit(3, shadowBuffer.depthBuffer);
+
+			glBindVertexArray(unintelligentVAO);
+			glDrawArrays(GL_TRIANGLES, 0, 3);
 		}
 		
 

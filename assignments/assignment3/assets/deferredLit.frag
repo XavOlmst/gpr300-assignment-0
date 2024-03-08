@@ -5,8 +5,7 @@ in vec2 UV; //From fsTriangle.vert
 
 //All your material and lighting uniforms go here!
 
-uniform sampler2D _MainTex;
-uniform mat4 _Model;
+//uniform sampler2D _MainTex;
 uniform mat4 _LightViewProjection;
 uniform vec3 _EyePos;
 uniform vec3 _LightDirection = vec3(0.0,-1.0,0.0);
@@ -27,6 +26,9 @@ uniform layout(binding = 0) sampler2D _gPositions;
 uniform layout(binding = 1) sampler2D _gNormals;
 uniform layout(binding = 2) sampler2D _gAlbedo;
 uniform layout(binding = 3) sampler2D _ShadowMap;
+
+vec4 LightSpacePos;
+vec3 normalLightDir;
 
 float calcShadow(sampler2D shadowMap, vec4 lightSpacePos, float bias)
 {
@@ -59,7 +61,7 @@ float calcShadow(sampler2D shadowMap, vec4 lightSpacePos, float bias)
 
 vec3 calculateLighting(vec3 normal, vec3 pos, vec3 albedo)
 {
-	vec3 toLight = -_LightDirection;
+	vec3 toLight = -normalLightDir;
 
 	vec3 ambient = _Material.Ka * _LightColor;
 
@@ -72,10 +74,10 @@ vec3 calculateLighting(vec3 normal, vec3 pos, vec3 albedo)
 	float specularFactor = pow(max(dot(normal,h),0.0f), _Material.Shininess);
 	vec3 specular = specularFactor * _LightColor;
 
-	float bias = max(0.05 * (1.0 - dot(normal, _LightDirection)), 0.005);
-	float shadow = calcShadow(_ShadowMap, _LightViewProjection * _Model * vec4(pos, 1.0f), bias);
+	float bias = max(0.05 * (1.0 - dot(normal, normalLightDir)), 0.005);
+	float shadow = calcShadow(_ShadowMap, LightSpacePos, bias);
 
-	vec3 lighting = ambient + (diffuse + specular);// * (1.0f - shadow);
+	vec3 lighting = ambient + (diffuse + specular) * (1.0f - shadow);
 
 	return lighting;
 }
@@ -83,10 +85,12 @@ vec3 calculateLighting(vec3 normal, vec3 pos, vec3 albedo)
 
 void main(){
 	//Sample surface properties for this screen pixel
+	normalLightDir = normalize(_LightDirection);
+
 	vec3 normal = texture(_gNormals,UV).xyz;
 	vec3 worldPos = texture(_gPositions,UV).xyz;
 	vec3 albedo = texture(_gAlbedo,UV).xyz;
-
+	LightSpacePos = _LightViewProjection * vec4(worldPos, 1.0f);
 	//Worldspace lighting calculations, same as in forward shading
 	vec3 lightColor = calculateLighting(normal,worldPos,albedo);
 	FragColor = vec4(albedo * lightColor,1.0);
